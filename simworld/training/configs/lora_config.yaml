@@ -1,0 +1,54 @@
+# ═══════════════════════════════════════════════════════════════════
+# SIMWORLD — LoRA Fine-Tuning Configuration
+# ═══════════════════════════════════════════════════════════════════
+
+model:
+  base_model: "mistralai/Mistral-7B-Instruct-v0.3"
+  model_type: "causal_lm"
+
+lora:
+  r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules:
+    - "q_proj"
+    - "v_proj"
+    - "k_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+  bias: "none"
+  task_type: "CAUSAL_LM"
+
+training:
+  learning_rate: 0.0002
+  num_epochs: 3
+  batch_size: 4
+  max_seq_length: 2048
+  warmup_ratio: 0.03
+  gradient_accumulation_steps: 4
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  fp16: true
+  bf16: false
+  logging_steps: 10
+  save_steps: 500
+  eval_steps: 250
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+
+data:
+  train_split: 0.9
+  max_records: null
+  shuffle: true
+  seed: 42
+
+output:
+  output_dir: "models/{category}"
+  logging_dir: "models/{category}/logs"
+
+quality:
+  min_quality_score: 0.80
+  graduation_threshold: 0.80
+  auto_register: true

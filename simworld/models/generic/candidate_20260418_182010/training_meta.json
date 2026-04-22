@@ -1,0 +1,12 @@
+{
+  "category": "generic",
+  "method": "simulated",
+  "train_samples": 18,
+  "eval_samples": 2,
+  "epochs": 3,
+  "best_val_loss": 0.7767,
+  "quality_score": 0.7411,
+  "training_time_seconds": 0.31,
+  "output_dir": "/Users/hritankardas/Desktop/ML SIMULATION/simworld/models/generic/candidate_20260418_182010",
+  "trained_at": "2026-04-18T18:20:10.915147+00:00"
+}

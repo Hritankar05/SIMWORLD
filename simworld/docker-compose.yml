@@ -1,0 +1,104 @@
+# SIMWORLD — Docker Compose (Development)
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: simworld-postgres
+    environment:
+      POSTGRES_USER: simworld
+      POSTGRES_PASSWORD: simworld
+      POSTGRES_DB: simworld
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simworld"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simworld_net
+
+  # ── Redis ─────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: simworld-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simworld_net
+
+  # ── Backend API ───────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: simworld-backend
+    command: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port 8000
+      --reload
+      --log-level info
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/../data
+      - ./models:/app/../models
+    env_file:
+      - backend/.env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://simworld:simworld@postgres:5432/simworld
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - simworld_net
+
+  # ── Celery Worker ─────────────────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: simworld-celery
+    command: >
+      celery -A workers.celery_app worker
+      --loglevel=info
+      --concurrency=2
+    volumes:
+      - ./backend:/app
+      - ./data:/app/../data
+      - ./models:/app/../models
+    env_file:
+      - backend/.env.example
+    environment:
+      DATABASE_URL: postgresql+asyncpg://simworld:simworld@postgres:5432/simworld
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - simworld_net
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  simworld_net:
+    driver: bridge

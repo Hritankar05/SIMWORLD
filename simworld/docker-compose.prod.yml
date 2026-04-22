@@ -1,0 +1,124 @@
+# SIMWORLD — Docker Compose (Production)
+
+services:
+  # ── PostgreSQL ────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: simworld-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-simworld}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-simworld_prod_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-simworld}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U simworld"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simworld_net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ── Redis ─────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: simworld-redis-prod
+    restart: always
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata_prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - simworld_net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ── Backend API ───────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: simworld-backend-prod
+    restart: always
+    command: >
+      uvicorn main:app
+      --host 0.0.0.0
+      --port 8000
+      --workers 4
+      --log-level warning
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/../data
+      - ./models:/app/../models
+    env_file:
+      - backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-simworld}:${POSTGRES_PASSWORD:-simworld_prod_secret}@postgres:5432/${POSTGRES_DB:-simworld}
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: WARNING
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - simworld_net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ── Celery Worker ─────────────────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: simworld-celery-prod
+    restart: always
+    command: >
+      celery -A workers.celery_app worker
+      --loglevel=warning
+      --concurrency=4
+    volumes:
+      - ./data:/app/../data
+      - ./models:/app/../models
+    env_file:
+      - backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-simworld}:${POSTGRES_PASSWORD:-simworld_prod_secret}@postgres:5432/${POSTGRES_DB:-simworld}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - simworld_net
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+volumes:
+  pgdata_prod:
+  redisdata_prod:
+
+networks:
+  simworld_net:
+    driver: bridge

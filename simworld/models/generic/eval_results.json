@@ -1,0 +1,25 @@
+{
+  "category": "generic",
+  "model_path": "/Users/hritankardas/Desktop/ML SIMULATION/simworld/models/generic/candidate_20260420_160535",
+  "samples_evaluated": 2,
+  "average_score": 1.0,
+  "graduated": true,
+  "score_distribution": {
+    "perfect_1.1": 0,
+    "full_1.0": 2,
+    "partial_0.5": 0,
+    "failed_0.0": 0
+  },
+  "details": [
+    {
+      "sample": 1,
+      "score": 1.0,
+      "reason": "All fields present"
+    },
+    {
+      "sample": 2,
+      "score": 1.0,
+      "reason": "All fields present"
+    }
+  ]
+}
